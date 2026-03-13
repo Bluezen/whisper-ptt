@@ -21,7 +21,7 @@ Lightweight push-to-talk speech recognition for macOS. Uses OpenAI's Whisper mod
 ## Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Bluezen/whisper-ptt.git
 cd whisper-ptt
 cargo build --release
 ./scripts/bundle.sh

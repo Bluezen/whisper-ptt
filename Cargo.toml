@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Lightweight push-to-talk speech recognition using Whisper"
 license = "MIT"
+repository = "https://github.com/Bluezen/whisper-ptt"
 
 [dependencies]
 # Whisper bindings
