@@ -3,6 +3,7 @@ name = "whisper-ptt"
 version = "0.1.0"
 edition = "2021"
 description = "Lightweight push-to-talk speech recognition using Whisper"
+license = "MIT"
 
 [dependencies]
 # Whisper bindings
