@@ -61,7 +61,7 @@ On first launch, the program:
 
 ### fn Key Setup
 
-If you use the default `fn` key, go to System Settings → Keyboard and set "Press fn key to" → "Do Nothing". Otherwise the system will intercept it.
+The program captures the `fn` key at the HID driver level (via IOHIDManager), so it works regardless of the system setting for that key. However, macOS may still trigger its own action (e.g. showing the emoji picker) alongside the recording. If that bothers you, go to System Settings → Keyboard and set "Press fn key to" → "Do Nothing".
 
 ## Configuration
 
