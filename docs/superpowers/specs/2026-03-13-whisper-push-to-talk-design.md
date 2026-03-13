@@ -33,6 +33,7 @@ mode = "hold"       # "hold" (walkie-talkie) or "toggle" (press start, press sto
 [whisper]
 model = "large-v3-turbo"  # tiny, base, small, medium, large, large-v3-turbo
 language = "auto"          # "auto" for detection, or "fr", "en", etc.
+min_duration_ms = 500      # Minimum recording duration in ms (shorter is discarded)
 
 [audio]
 device = "default"                  # "default" or device name
@@ -40,9 +41,15 @@ mute_output_during_recording = true # Mute system output during capture
 
 [clipboard]
 restore_previous = true  # Restore previous clipboard content after pasting
+paste_delay_ms = 100     # Delay in ms between clipboard set and Cmd+V simulation
+restore_delay_ms = 200   # Delay in ms after paste before restoring previous clipboard
 
 [history]
 database = "~/.whisper-ptt/history.db"
+
+[logging]
+level = "info"           # trace, debug, info, warn, error
+max_file_size_mb = 10    # Log file rotated when exceeding this size
 ```
 
 ## Data Flow
@@ -84,7 +91,10 @@ database = "~/.whisper-ptt/history.db"
        └── INSERT INTO transcriptions (text, language, model, duration_ms, created_at)
 
 3. Shutdown (SIGINT/SIGTERM)
+   ├── Stop audio capture if in progress
    ├── Unmute output if muted
+   ├── Close SQLite connection
+   ├── Flush log
    └── Exit
 ```
 
@@ -107,6 +117,7 @@ database = "~/.whisper-ptt/history.db"
   - **Toggle**: first `KeyPress` → `StartRecording`, second `KeyPress` → `StopRecording` (ignores `KeyRelease`)
 - Anti-repeat filtering: tracks key state to ignore OS key-repeat events in hold mode
 - Maps config key names to `rdev::Key` enum variants
+- **fn key caveat**: on macOS, the `fn`/Globe key may be intercepted by the system (Emoji picker, Dictation). Users may need to reconfigure it in System Settings → Keyboard → "Press fn key to" → "Do Nothing". This is documented in the README. If `fn` proves unreliable at runtime, the user can reconfigure to another key (e.g., `F18`, `RightAlt`).
 
 ```rust
 enum HotkeyEvent {
@@ -119,7 +130,8 @@ enum HotkeyEvent {
 
 **Capture:**
 - Opens input stream on configured device (or default) via `cpal`
-- Captures PCM audio, resamples to 16kHz mono `Vec<f32>` (Whisper's expected format)
+- Captures PCM audio into a buffer at the device's native sample rate
+- Resamples to 16kHz mono `Vec<f32>` (Whisper's expected format) using the `rubato` crate (high-quality sinc resampling)
 - Runs in dedicated thread, sends completed buffer via channel
 
 **Feedback sounds:**
@@ -128,7 +140,8 @@ enum HotkeyEvent {
 
 **Output muting (when `mute_output_during_recording = true`):**
 - Uses `coreaudio-sys` to read/write `kAudioDevicePropertyMute` on default output device
-- Sequence: play start sound → mute → capture → stop capture → unmute → play stop sound
+- Sequence: play start sound → wait for sound to finish → mute → capture → stop capture → unmute → play stop sound
+- The start sound must complete playback before muting (blocking wait on rodio sink), to avoid cutting it short
 - On shutdown: always unmute if currently muted (safety net)
 
 ### transcriber
@@ -136,6 +149,9 @@ enum HotkeyEvent {
 - Loads model file into `whisper_rs::WhisperContext` at startup (stays resident in memory)
 - Downloads model from HuggingFace whisper.cpp releases if not present in `~/.whisper-ptt/models/`
   - Download with progress bar via `reqwest` (blocking) + `indicatif`
+  - Downloads to a `.part` temp file, renamed to final name only on success
+  - On download failure (network error, disk full): deletes `.part` file, logs error, exits with clear message
+  - SHA256 checksum verification after download (checksums hardcoded per model)
 - Supported models: `tiny`, `base`, `small`, `medium`, `large`, `large-v3-turbo`
 - Transcription params:
   - `language`: configured value or `None` for auto-detection
@@ -144,25 +160,30 @@ enum HotkeyEvent {
   - `print_progress`: `false`
 - Synchronous call to `whisper_ctx.full()`
 - Returns `String` (transcribed text)
-- While transcription is in progress, PTT events are ignored (no queuing)
+- While transcription is in progress, PTT events are ignored entirely (no sound feedback, no recording, no queuing)
+- Recordings shorter than `min_duration_ms` (default 500ms) are discarded silently — prevents Whisper hallucinations on accidental key taps
 
 ### clipboard
 
 - Uses `arboard::Clipboard` for clipboard access
 - Sequence:
-  1. `clipboard.get_text()` — save previous content (if `restore_previous`)
+  1. Save previous clipboard content if `restore_previous` — supports text and image (`get_text()` / `get_image()`)
   2. `clipboard.set_text(transcription)`
-  3. Wait ~50ms
+  3. Wait `paste_delay_ms` (default 100ms, configurable)
   4. Simulate `Cmd+V` via `rdev::simulate` (`MetaLeft` + `KeyV`)
-  5. Wait ~50ms
-  6. `clipboard.set_text(previous)` — restore (if `restore_previous`)
-- Handles case where previous clipboard content is not text (image, etc.) gracefully
+  5. Wait `restore_delay_ms` (default 200ms, configurable) — longer to let slow apps process the paste
+  6. Restore previous clipboard content (text or image) if `restore_previous`
+- If previous content type is unsupported (e.g., custom format), restoration is skipped and a debug log is emitted
 
 ### history
 
 SQLite database at configured path (default `~/.whisper-ptt/history.db`).
 
 ```sql
+CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS transcriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
@@ -173,7 +194,9 @@ CREATE TABLE IF NOT EXISTS transcriptions (
 );
 ```
 
-- Database and table created on first run
+- Database opened with WAL mode (`PRAGMA journal_mode=WAL`) to allow concurrent reads (e.g., user querying with `sqlite3` while the app is running)
+- Schema version tracked for future migrations (initial version: 1)
+- Database and tables created on first run
 - One INSERT per successful transcription
 - No automatic purge — file stays small even with thousands of entries
 - User can query with any SQLite tool (`sqlite3`, DB Browser, etc.)
@@ -183,6 +206,7 @@ CREATE TABLE IF NOT EXISTS transcriptions (
 - Orchestrates all modules
 - Event loop: blocks on `hotkey_receiver.recv()`, dispatches to audio/transcriber/clipboard/history
 - Intercepts `SIGINT`/`SIGTERM` via `ctrlc` crate for clean shutdown
+- Shutdown sequence: stop audio capture, unmute output, close SQLite, flush logs, drop hotkey thread
 - No daemonization — user runs in terminal or configures `launchd`
 - Example `launchd` plist provided in documentation
 
@@ -201,7 +225,8 @@ CREATE TABLE IF NOT EXISTS transcriptions (
 | `reqwest` (feature: `blocking`) | HTTP model download |
 | `indicatif` | Terminal progress bar for downloads |
 | `dirs` | User directory resolution (~) |
-| `tracing` + `tracing-subscriber` | Logging |
+| `rubato` | High-quality audio resampling to 16kHz |
+| `tracing` + `tracing-subscriber` + `tracing-appender` | Logging with file rotation |
 | `ctrlc` | Signal handling for clean shutdown |
 
 ## macOS Permissions
