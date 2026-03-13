@@ -11,6 +11,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+/// Send a macOS notification via osascript (non-blocking).
+#[cfg(target_os = "macos")]
+fn notify(title: &str, message: &str) {
+    let safe = message.replace('\\', "\\\\").replace('"', "\\\"");
+    let _ = std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(format!(
+            r#"display notification "{safe}" with title "{title}""#
+        ))
+        .spawn();
+}
+
+#[cfg(not(target_os = "macos"))]
+fn notify(_title: &str, _message: &str) {}
+
 fn main() -> Result<()> {
     eprintln!("whisper-ptt pid={} starting", std::process::id());
 
@@ -186,6 +201,9 @@ fn main() -> Result<()> {
 
                 // Transcribe
                 tracing::info!("transcribing {} samples...", audio_data.len());
+                if config.notifications.enabled {
+                    notify("whisper-ptt", "Transcribing…");
+                }
                 match transcriber.transcribe(&audio_data) {
                     Ok((text, lang)) => {
                         if text.is_empty() {
@@ -194,6 +212,14 @@ fn main() -> Result<()> {
                         }
 
                         tracing::info!("transcribed: '{}' (lang: {:?})", text, lang);
+                        if config.notifications.enabled {
+                            let preview = if text.len() > 100 {
+                                format!("{}…", &text[..100])
+                            } else {
+                                text.clone()
+                            };
+                            notify("whisper-ptt", &preview);
+                        }
 
                         // Paste
                         if let Err(e) = clipboard::paste_text(

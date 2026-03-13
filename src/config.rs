@@ -10,6 +10,12 @@ pub struct Config {
     pub clipboard: ClipboardConfig,
     pub history: HistoryConfig,
     pub logging: LoggingConfig,
+    #[serde(default = "default_notifications")]
+    pub notifications: NotificationsConfig,
+}
+
+fn default_notifications() -> NotificationsConfig {
+    NotificationsConfig { enabled: true }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,6 +55,11 @@ pub struct LoggingConfig {
     pub max_file_size_mb: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotificationsConfig {
+    pub enabled: bool,
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -66,7 +77,7 @@ impl Default for Config {
                 mute_output_during_recording: true,
             },
             clipboard: ClipboardConfig {
-                restore_previous: true,
+                restore_previous: false,
                 paste_delay_ms: 100,
                 restore_delay_ms: 200,
             },
@@ -76,6 +87,9 @@ impl Default for Config {
             logging: LoggingConfig {
                 level: "info".to_string(),
                 max_file_size_mb: 10,
+            },
+            notifications: NotificationsConfig {
+                enabled: true,
             },
         }
     }

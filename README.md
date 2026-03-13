@@ -9,6 +9,7 @@ Lightweight push-to-talk speech recognition for macOS. Uses OpenAI's Whisper mod
 - Automatic language detection (or fixed language)
 - Audio feedback sounds for recording start/stop
 - Optional system output muting during recording
+- macOS notifications for transcription progress and result
 - SQLite history of all transcriptions
 - Simple TOML configuration
 
@@ -26,41 +27,41 @@ cargo build --release
 ./scripts/bundle.sh
 ```
 
-Ceci produit `target/WhisperPTT.app` — un Application Bundle macOS prêt à l'emploi.
+This produces `target/WhisperPTT.app` — a ready-to-use macOS Application Bundle.
 
 ## Usage
 
-### Premier lancement (permissions)
+### First launch (permissions)
 
 ```bash
 open target/WhisperPTT.app
 ```
 
-macOS demandera les permissions suivantes :
-- **Microphone** — capture audio pour la transcription
-- **Accessibilité** — simulation Cmd+V pour coller le texte
-- **Surveillance de l'entrée** — écoute globale de la touche push-to-talk
+macOS will request the following permissions:
+- **Microphone** — audio capture for transcription
+- **Accessibility** — Cmd+V simulation to paste text
+- **Input Monitoring** — global listening for the push-to-talk key
 
-Accordez les trois, puis le programme démarre en arrière-plan (pas d'icône dans le Dock).
+Grant all three, then the program runs in the background (no Dock icon).
 
-### Lancement direct (développement)
+### Direct launch (development)
 
 ```bash
 ./target/release/whisper-ptt
 ```
 
-> **Note** : en lancement direct depuis un terminal, les permissions sont associées au terminal, pas au binaire.
+> **Note**: when launching directly from a terminal, permissions are associated with the terminal app, not the binary itself.
 
-### Premier démarrage
+### First startup
 
-Au premier lancement, le programme :
-1. Crée `~/.whisper-ptt/config.toml` avec la configuration par défaut
-2. Télécharge le modèle Whisper configuré (~1.6 Go pour large-v3-turbo)
-3. Commence à écouter la touche push-to-talk
+On first launch, the program:
+1. Creates `~/.whisper-ptt/config.toml` with the default configuration
+2. Downloads the configured Whisper model (~1.6 GB for large-v3-turbo)
+3. Starts listening for the push-to-talk key
 
 ### fn Key Setup
 
-Si vous utilisez la touche `fn` par défaut, allez dans Réglages Système → Clavier et réglez "Appuyer sur la touche fn pour" → "Ne rien faire". Sinon le système l'interceptera.
+If you use the default `fn` key, go to System Settings → Keyboard and set "Press fn key to" → "Do Nothing". Otherwise the system will intercept it.
 
 ## Configuration
 
@@ -81,17 +82,24 @@ device = "default"
 mute_output_during_recording = true
 
 [clipboard]
-restore_previous = true
+restore_previous = false
 paste_delay_ms = 100
 restore_delay_ms = 200
 
 [history]
 database = "~/.whisper-ptt/history.db"
 
+[notifications]
+enabled = true          # macOS notifications (transcription progress + result)
+
 [logging]
 level = "info"
 max_file_size_mb = 10
 ```
+
+### Clipboard tip
+
+By default, `restore_previous` is set to `false`, which means the transcribed text stays in your clipboard after pasting. This lets you paste it again with Cmd+V as many times as you want — useful if you need the text in multiple places. Set it to `true` if you prefer the clipboard to be restored to its previous content after pasting.
 
 ## History
 
@@ -103,17 +111,17 @@ sqlite3 ~/.whisper-ptt/history.db "SELECT created_at, text FROM transcriptions O
 
 ## Run at Login (launchd)
 
-### Prérequis
+### Prerequisites
 
-1. **Compilez et créez le bundle** : `cargo build --release && ./scripts/bundle.sh`
-2. **Lancez une première fois** : `open target/WhisperPTT.app`
-3. **Accordez toutes les permissions** (Microphone, Accessibilité, Surveillance de l'entrée)
+1. **Build and create the bundle**: `cargo build --release && ./scripts/bundle.sh`
+2. **Launch once**: `open target/WhisperPTT.app`
+3. **Grant all permissions** (Microphone, Accessibility, Input Monitoring)
 
-> Les permissions sont associées au `.app` et persistent entre les redémarrages. Sous launchd, le programme utilise IOHIDManager pour capter la touche fn — pas besoin de terminal.
+> Permissions are associated with the `.app` and persist across reboots. Under launchd, the program uses IOHIDManager to capture the fn key — no terminal needed.
 
-### Configuration du Launch Agent
+### Launch Agent Configuration
 
-Créez `~/Library/LaunchAgents/com.whisper-ptt.plist` :
+Create `~/Library/LaunchAgents/com.whisper-ptt.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -138,27 +146,27 @@ Créez `~/Library/LaunchAgents/com.whisper-ptt.plist` :
 </plist>
 ```
 
-Remplacez `/path/to/WhisperPTT.app` par le chemin absolu du bundle.
+Replace `/path/to/WhisperPTT.app` with the absolute path to the bundle.
 
 ```bash
-# Charger le Launch Agent
+# Load the Launch Agent
 launchctl load ~/Library/LaunchAgents/com.whisper-ptt.plist
 
-# Recharger après modification du plist
+# Reload after modifying the plist
 launchctl unload ~/Library/LaunchAgents/com.whisper-ptt.plist
 launchctl load ~/Library/LaunchAgents/com.whisper-ptt.plist
 ```
 
-### Diagnostic
+### Troubleshooting
 
 ```bash
-# Vérifier que le processus tourne
+# Check that the process is running
 launchctl list | grep whisper-ptt
 
-# Consulter les logs de démarrage
+# View startup logs
 cat /tmp/whisper-ptt.stderr.log
 
-# Consulter le log applicatif
+# View application log
 ls ~/.whisper-ptt/whisper-ptt.log.*
 cat ~/.whisper-ptt/whisper-ptt.log.$(date +%Y-%m-%d)
 ```
