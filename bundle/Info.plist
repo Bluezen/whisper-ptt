@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.whisper-ptt</string>
+
+    <key>CFBundleName</key>
+    <string>WhisperPTT</string>
+
+    <key>CFBundleDisplayName</key>
+    <string>Whisper Push-to-Talk</string>
+
+    <key>CFBundleExecutable</key>
+    <string>whisper-ptt</string>
+
+    <key>CFBundleVersion</key>
+    <string>0.1.0</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+
+    <!-- Background-only app — no Dock icon, no menu bar -->
+    <key>LSBackgroundOnly</key>
+    <true/>
+
+    <!-- TCC usage descriptions — required for the system permission prompts -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>WhisperPTT needs microphone access to capture speech for transcription.</string>
+
+    <key>NSAppleEventsUsageDescription</key>
+    <string>WhisperPTT needs accessibility access to simulate keyboard shortcuts for pasting transcribed text.</string>
+</dict>
+</plist>

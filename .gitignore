@@ -1,0 +1,9 @@
+# Build artifacts
+/target
+a.out
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude
