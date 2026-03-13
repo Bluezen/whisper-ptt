@@ -71,7 +71,9 @@ pub fn paste_text(
     };
 
     // Set transcription in clipboard
-    clipboard.set_text(text).context("failed to set clipboard text")?;
+    clipboard
+        .set_text(text)
+        .context("failed to set clipboard text")?;
 
     // Wait for clipboard to propagate
     thread::sleep(Duration::from_millis(paste_delay_ms));

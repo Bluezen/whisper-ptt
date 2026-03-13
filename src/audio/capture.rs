@@ -1,7 +1,9 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, Stream, StreamConfig};
-use rubato::{SincFixedIn, SincInterpolationParameters, SincInterpolationType, Resampler, WindowFunction};
+use rubato::{
+    Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction,
+};
 use std::sync::{Arc, Mutex};
 
 const TARGET_SAMPLE_RATE: u32 = 16_000;
@@ -37,7 +39,8 @@ impl AudioCapture {
     /// Start capturing audio from the given device name.
     pub fn start(device_name: &str) -> Result<Self> {
         let device = get_input_device(device_name)?;
-        let config = device.default_input_config()
+        let config = device
+            .default_input_config()
             .context("failed to get default input config")?;
 
         let sample_rate = config.sample_rate().0;

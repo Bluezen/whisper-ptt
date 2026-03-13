@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -88,9 +88,7 @@ impl Default for Config {
                 level: "info".to_string(),
                 max_file_size_mb: 10,
             },
-            notifications: NotificationsConfig {
-                enabled: true,
-            },
+            notifications: NotificationsConfig { enabled: true },
         }
     }
 }
@@ -99,13 +97,48 @@ const VALID_MODES: &[&str] = &["hold", "toggle"];
 const VALID_MODELS: &[&str] = &["tiny", "base", "small", "medium", "large", "large-v3-turbo"];
 const VALID_LOG_LEVELS: &[&str] = &["trace", "debug", "info", "warn", "error"];
 const VALID_KEYS: &[&str] = &[
-    "fn", "function", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10",
-    "f11", "f12", "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20",
-    "leftalt", "leftoption", "rightalt", "rightoption",
-    "leftcontrol", "leftctrl", "rightcontrol", "rightctrl",
-    "leftshift", "rightshift",
-    "leftmeta", "leftcmd", "leftcommand", "rightmeta", "rightcmd", "rightcommand",
-    "space", "capslock", "escape", "esc",
+    "fn",
+    "function",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
+    "f10",
+    "f11",
+    "f12",
+    "f13",
+    "f14",
+    "f15",
+    "f16",
+    "f17",
+    "f18",
+    "f19",
+    "f20",
+    "leftalt",
+    "leftoption",
+    "rightalt",
+    "rightoption",
+    "leftcontrol",
+    "leftctrl",
+    "rightcontrol",
+    "rightctrl",
+    "leftshift",
+    "rightshift",
+    "leftmeta",
+    "leftcmd",
+    "leftcommand",
+    "rightmeta",
+    "rightcmd",
+    "rightcommand",
+    "space",
+    "capslock",
+    "escape",
+    "esc",
 ];
 
 /// Resolve ~ to the user's home directory.
@@ -162,19 +195,37 @@ impl Config {
     /// Validate all config values.
     pub fn validate(&self) -> Result<()> {
         if !VALID_KEYS.contains(&self.hotkey.key.to_lowercase().as_str()) {
-            bail!("invalid hotkey key '{}', expected one of: fn, F18, RightAlt, LeftControl, etc.", self.hotkey.key);
+            bail!(
+                "invalid hotkey key '{}', expected one of: fn, F18, RightAlt, LeftControl, etc.",
+                self.hotkey.key
+            );
         }
         if !VALID_MODES.contains(&self.hotkey.mode.as_str()) {
-            bail!("invalid hotkey mode '{}', expected one of: {}", self.hotkey.mode, VALID_MODES.join(", "));
+            bail!(
+                "invalid hotkey mode '{}', expected one of: {}",
+                self.hotkey.mode,
+                VALID_MODES.join(", ")
+            );
         }
         if !VALID_MODELS.contains(&self.whisper.model.as_str()) {
-            bail!("invalid whisper model '{}', expected one of: {}", self.whisper.model, VALID_MODELS.join(", "));
+            bail!(
+                "invalid whisper model '{}', expected one of: {}",
+                self.whisper.model,
+                VALID_MODELS.join(", ")
+            );
         }
         if self.whisper.language != "auto" && self.whisper.language.len() != 2 {
-            bail!("invalid language '{}', expected 'auto' or a 2-letter code like 'fr', 'en'", self.whisper.language);
+            bail!(
+                "invalid language '{}', expected 'auto' or a 2-letter code like 'fr', 'en'",
+                self.whisper.language
+            );
         }
         if !VALID_LOG_LEVELS.contains(&self.logging.level.as_str()) {
-            bail!("invalid log level '{}', expected one of: {}", self.logging.level, VALID_LOG_LEVELS.join(", "));
+            bail!(
+                "invalid log level '{}', expected one of: {}",
+                self.logging.level,
+                VALID_LOG_LEVELS.join(", ")
+            );
         }
         Ok(())
     }

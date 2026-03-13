@@ -64,10 +64,7 @@ mod ffi {
             run_loop_mode: core_foundation_sys::string::CFStringRef,
         );
 
-        pub fn IOHIDManagerOpen(
-            manager: IOHIDManagerRef,
-            options: IOOptionBits,
-        ) -> IOReturn;
+        pub fn IOHIDManagerOpen(manager: IOHIDManagerRef, options: IOOptionBits) -> IOReturn;
 
         pub fn IOHIDValueGetElement(value: IOHIDValueRef) -> IOHIDElementRef;
         pub fn IOHIDElementGetUsagePage(element: IOHIDElementRef) -> u32;
@@ -97,9 +94,7 @@ extern "C" fn hid_value_callback(
         let page = ffi::IOHIDElementGetUsagePage(element);
         let usage = ffi::IOHIDElementGetUsage(element);
 
-        if page != KHID_PAGE_APPLE_VENDOR_TOP_CASE
-            || usage != KHID_USAGE_AV_TOP_CASE_KEYBOARD_FN
-        {
+        if page != KHID_PAGE_APPLE_VENDOR_TOP_CASE || usage != KHID_USAGE_AV_TOP_CASE_KEYBOARD_FN {
             return;
         }
 

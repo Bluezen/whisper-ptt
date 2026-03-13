@@ -30,15 +30,17 @@ impl History {
                 model TEXT NOT NULL,
                 duration_ms INTEGER,
                 created_at TEXT NOT NULL
-            );"
+            );",
         )?;
 
         // Set schema version if empty
-        let count: i32 = conn.query_row(
-            "SELECT COUNT(*) FROM schema_version", [], |row| row.get(0)
-        )?;
+        let count: i32 =
+            conn.query_row("SELECT COUNT(*) FROM schema_version", [], |row| row.get(0))?;
         if count == 0 {
-            conn.execute("INSERT INTO schema_version (version) VALUES (?1)", [SCHEMA_VERSION])?;
+            conn.execute(
+                "INSERT INTO schema_version (version) VALUES (?1)",
+                [SCHEMA_VERSION],
+            )?;
         }
 
         Ok(Self { conn })
@@ -64,9 +66,9 @@ impl History {
     /// Get the count of transcriptions (for testing).
     #[cfg(test)]
     pub fn count(&self) -> Result<i64> {
-        let count: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM transcriptions", [], |row| row.get(0)
-        )?;
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM transcriptions", [], |row| row.get(0))?;
         Ok(count)
     }
 }
@@ -89,10 +91,14 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let history = History::open(&db_path).unwrap();
 
-        history.insert("hello world", Some("en"), "tiny", 1500).unwrap();
+        history
+            .insert("hello world", Some("en"), "tiny", 1500)
+            .unwrap();
         assert_eq!(history.count().unwrap(), 1);
 
-        history.insert("bonjour le monde", Some("fr"), "large-v3-turbo", 2300).unwrap();
+        history
+            .insert("bonjour le monde", Some("fr"), "large-v3-turbo", 2300)
+            .unwrap();
         assert_eq!(history.count().unwrap(), 2);
     }
 
@@ -112,9 +118,10 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let history = History::open(&db_path).unwrap();
 
-        let version: i32 = history.conn.query_row(
-            "SELECT version FROM schema_version", [], |row| row.get(0)
-        ).unwrap();
+        let version: i32 = history
+            .conn
+            .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
+            .unwrap();
         assert_eq!(version, 1);
     }
 
@@ -124,9 +131,10 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let history = History::open(&db_path).unwrap();
 
-        let mode: String = history.conn.query_row(
-            "PRAGMA journal_mode", [], |row| row.get(0)
-        ).unwrap();
+        let mode: String = history
+            .conn
+            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+            .unwrap();
         assert_eq!(mode, "wal");
     }
 
